@@ -6,5 +6,7 @@ node_modules/
 # Raycast specific files
 raycast-env.d.ts
 
+apikey.ts
+
 # misc
 .DS_Store

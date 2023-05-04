@@ -1,34 +1,43 @@
-import { ActionPanel, Action, Icon, List } from "@raycast/api";
+import { ActionPanel, Action, Form, showToast, Toast } from "@raycast/api";
+import { useState } from "react";
+import { getResponse } from "./utils/initChat";
 
 export default function Command() {
-  return (
-    <List>
-      <List.Section title="Basics">
-        <LinkListItem title="Familiarize yourself with Raycast" link="https://raycast.com/manual" />
-        <LinkListItem title="Install extensions from our public store" link="https://www.raycast.com/store" />
-        <LinkListItem title="Build your own extensions with our API" link="https://developers.raycast.com" />
-        <LinkListItem title="Invite your teammates" link="raycast://organizations/thomasyang/manage" />
-      </List.Section>
-      <List.Section title="Next Steps">
-        <LinkListItem title="Join the Raycast community" link="https://raycast.com/community" />
-        <LinkListItem title="Stay up to date via Twitter" link="https://twitter.com/raycastapp" />
-      </List.Section>
-    </List>
-  );
-}
+  const [improved, setImproved] = useState("");
+  const [isSubmiting, setIsSubmiting] = useState(false);
 
-function LinkListItem(props: { title: string; link: string }) {
   return (
-    <List.Item
-      title={props.title}
-      icon={Icon.Link}
-      accessories={[{ text: props.link }]}
+    <Form
       actions={
         <ActionPanel>
-          <Action.OpenInBrowser url={props.link} />
-          <Action.CopyToClipboard title="Copy Link" content={props.link} />
+          <Action.SubmitForm
+            title="Submit"
+            onSubmit={async (value) => {
+              if (isSubmiting) {
+                return;
+              }
+              setIsSubmiting(true);
+              const toast = await showToast({
+                style: Toast.Style.Animated,
+                title: "Asking…",
+              });
+              const completion = await getResponse(value.sentence);
+              const res = JSON.parse(completion || "{}");
+              setImproved(res.improved);
+              setIsSubmiting(false);
+              toast.hide();
+            }}
+          />
+          <Action.CopyToClipboard
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            title="Copy Improved"
+            content={improved}
+          />
         </ActionPanel>
       }
-    />
+    >
+      <Form.TextArea autoFocus id="sentence" title="Sentence" />
+      {improved && <Form.Description title="Improved" text={improved} />}
+    </Form>
   );
 }
