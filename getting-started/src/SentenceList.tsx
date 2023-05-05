@@ -1,10 +1,10 @@
-import { ActionPanel, Action, showToast, Toast, List, Detail } from "@raycast/api";
+import { ActionPanel, Action, showToast, Toast, List, Icon } from "@raycast/api";
 import { useState } from "react";
 import { getResponse } from "./utils/initChat";
 import { generateMarkdownDiff } from "./utils/diff";
 
 export default function Command() {
-  const [improved, setImproved] = useState("");
+  const [res, setRes] = useState<{ improved: string; reason: string }>({ improved: "", reason: "" });
   const [isSubmiting, setIsSubmiting] = useState(false);
 
   const [searchText, setSearchText] = useState("");
@@ -16,13 +16,9 @@ export default function Command() {
       searchBarPlaceholder="Type the sentence you want to check"
       navigationTitle="English Teacher"
       isLoading={isSubmiting}
-      isShowingDetail={!!improved || isSubmiting}
-      // actions={
-      //   <ActionPanel>
-      //   </ActionPanel>
-      // }
+      isShowingDetail={!!res.improved || isSubmiting}
     >
-      {searchText && (
+      {searchText ? (
         <List.Item
           title={searchText}
           actions={
@@ -38,26 +34,34 @@ export default function Command() {
                     style: Toast.Style.Animated,
                     title: "Asking…",
                   });
-                  const completion = await getResponse(searchText);
-                  const res = JSON.parse(completion || "{}");
-                  setImproved(res.improved);
-                  console.log(generateMarkdownDiff(searchText, res.improved));
-                  setDiff(generateMarkdownDiff(searchText, res.improved));
-                  setIsSubmiting(false);
-                  toast.hide();
+                  try {
+                    const completion = await getResponse(searchText);
+                    const res = JSON.parse(completion || "{}");
+                    console.log(res);
+                    setRes(res);
+                    setDiff(generateMarkdownDiff(searchText, res.improved));
+                  } finally {
+                    setIsSubmiting(false);
+                    toast.hide();
+                  }
                 }}
               />
               <Action.CopyToClipboard
                 shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                 title="Copy Improved"
-                content={improved}
+                content={res.improved}
               />
             </ActionPanel>
           }
           detail={
-            <List.Item.Detail isLoading={isSubmiting} markdown={`### Improved\n${improved}\n### Diff\n${diff}\n`} />
+            <List.Item.Detail
+              isLoading={isSubmiting}
+              markdown={isSubmiting ? "Waiting…" : `### Improved\n${diff}\n### Reason\n${res.reason}`}
+            />
           }
         />
+      ) : (
+        <List.EmptyView icon={{ source: Icon.Hammer }} title="Type you sentence and let me fix it" />
       )}
     </List>
   );

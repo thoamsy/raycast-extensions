@@ -4,7 +4,6 @@ export function generateMarkdownDiff(text1: string, text2: string) {
   const diff = diffChars(text1, text2, {
     ignoreCase: true,
   });
-  console.log(diff);
 
   let markdown = "";
 

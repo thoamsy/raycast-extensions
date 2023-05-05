@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "english-fixer",
   "title": "EnglishFixer",
-  "description": "Everything you need to know to get started with Raycast for Teams",
+  "description": "Use OpenAI's GPT-3.5 to fix your English",
   "icon": "icon.png",
   "author": "thoamsy",
   "owner": "thomasyang",
@@ -13,9 +13,9 @@
   "commands": [
     {
       "name": "index",
-      "title": "Getting Started",
-      "subtitle": "Raycast for Teams",
-      "description": "Learn about the first steps to take advantage of Raycast for Teams",
+      "title": "English Fixer",
+      "subtitle": "ChatGPT",
+      "description": "Make your English better",
       "mode": "view"
     }
   ],
@@ -38,5 +38,6 @@
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
     "publish": "npx @raycast/api@latest publish"
-  }
+  },
+  "version": "0.0.1"
 }
