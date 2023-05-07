@@ -8,7 +8,7 @@ const diffMethods: Record<PreferenceValues["diffWay"], typeof diffChars> = {
 };
 
 export function generateMarkdownDiff(text1: string, text2: string) {
-  if (!text1 || text2) {
+  if (!text1 || !text2) {
     return "";
   }
   const { diffWay, ignoreCase = true } = getPreferenceValues();

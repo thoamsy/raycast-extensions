@@ -18,15 +18,18 @@ import { generateMarkdownDiff } from "./utils/diff";
 
 const CONVERSATION_KEY = "CONVERSATION_KEY";
 
+// const dateGroups = ["Today", "Last 3 days", "Last Week", "Older"];
+
+// add date to supporting the section
 export type Conversation = {
   original: string;
   improved: string;
   explanation: string;
-  // diff: string;
   correct?: boolean;
   error?: string;
 };
 
+// need Date
 export default function SentenceList() {
   const [isSubmiting, setIsSubmiting] = useState(false);
 

@@ -58,8 +58,6 @@ export default function Command(props: LaunchProps<{ draftValues: FormValues }>)
       toast.hide();
     }
   };
-  const [sentenceError, setSentenceError] = useState("");
-
   return (
     <Form
       isLoading={isSubmiting}
@@ -67,21 +65,23 @@ export default function Command(props: LaunchProps<{ draftValues: FormValues }>)
       enableDrafts
       actions={
         <ActionPanel>
-          <Action.SubmitForm
-            onSubmit={async (values: FormValues) => {
-              if (!values.sentences) {
-                showToast({
-                  title: "Please type something",
-                  style: Toast.Style.Failure,
-                });
-                return;
-              }
+          {sentences && (
+            <Action.SubmitForm
+              onSubmit={async (values: FormValues) => {
+                if (!values.sentences) {
+                  showToast({
+                    title: "Please type something",
+                    style: Toast.Style.Failure,
+                  });
+                  return;
+                }
 
-              if (await onAskingChatGPT(values.sentences)) {
-                setSentences("");
-              }
-            }}
-          />
+                if (await onAskingChatGPT(values.sentences)) {
+                  setSentences("");
+                }
+              }}
+            />
+          )}
           {conversationHistory.length > 0 ? (
             <Action.Push title="Show History" shortcut={{ modifiers: ["cmd"], key: "d" }} target={<SentenceList />} />
           ) : (
@@ -102,16 +102,10 @@ export default function Command(props: LaunchProps<{ draftValues: FormValues }>)
       <Form.TextArea
         placeholder="Type the sentence you want to check"
         enableMarkdown
-        onBlur={() => {
-          if (!sentences) {
-            setSentenceError("Please type something");
-          }
-        }}
         id="sentences"
         title="Sentence"
         value={sentences}
         onChange={setSentences}
-        error={sentenceError}
       />
       {error && <Form.Description title="Error Message" text={error} />}
     </Form>
