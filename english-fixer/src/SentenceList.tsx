@@ -15,6 +15,7 @@ import { useState } from "react";
 import { runAppleScript } from "run-applescript";
 import { getResponse } from "./utils/initChat";
 import { generateMarkdownDiff } from "./utils/diff";
+import { PreferenceValues, DIFF_WAYS } from "./utils/getPreferenceValues";
 
 const CONVERSATION_KEY = "CONVERSATION_KEY";
 
@@ -27,6 +28,7 @@ export type Conversation = {
   explanation: string;
   correct?: boolean;
   error?: string;
+  diffWay?: PreferenceValues["diffWay"];
 };
 
 // need Date
@@ -56,7 +58,7 @@ export default function SentenceList() {
       console.log(completion);
       const res = JSON.parse(completion || "{}");
 
-      const newConversation = {
+      const newConversation: Conversation = {
         original: originalText,
         improved: res.improved,
         explanation: res.explanation,
@@ -100,13 +102,29 @@ export default function SentenceList() {
         <List.Section title="History">
           {conversationHistory.map((conversation, index) => {
             const diff = selectedId.endsWith("" + index)
-              ? generateMarkdownDiff(conversation.original, conversation.improved)
+              ? generateMarkdownDiff(conversation.original, conversation.improved, {
+                  diffWay: conversation.diffWay,
+                })
               : "";
+
+            const onUpdateDiffWay = (diffWay: PreferenceValues["diffWay"]) => () => {
+              setConversationHistory((history) =>
+                history.map((item, i) =>
+                  i === index
+                    ? {
+                        ...item,
+                        diffWay,
+                      }
+                    : item
+                )
+              );
+            };
+
             return (
               <List.Item
                 title={conversation.original}
                 id={"history-" + index}
-                key={index}
+                key={index + (conversation.diffWay ?? "words")}
                 accessories={
                   conversation.correct
                     ? [{ icon: { tintColor: Color.Green, source: Icon.CheckCircle } }, speakerIcon]
@@ -124,6 +142,15 @@ export default function SentenceList() {
                       icon={Icon.RotateClockwise}
                       title="Recheck"
                     />
+                    <ActionPanel.Submenu icon={Icon.Switch} title="Update Diff Way">
+                      {DIFF_WAYS.map((way) => (
+                        <Action
+                          title={way[0].toUpperCase() + way.slice(1).toLowerCase()}
+                          key={way}
+                          onAction={onUpdateDiffWay(way)}
+                        />
+                      ))}
+                    </ActionPanel.Submenu>
                     <ActionPanel.Section title="Speak">
                       <Action
                         shortcut={{ modifiers: ["cmd"], key: "s" }}

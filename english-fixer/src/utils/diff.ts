@@ -7,11 +7,18 @@ const diffMethods: Record<PreferenceValues["diffWay"], typeof diffChars> = {
   words: diffWords,
 };
 
-export function generateMarkdownDiff(text1: string, text2: string) {
+export function generateMarkdownDiff(
+  text1: string,
+  text2: string,
+  options: {
+    diffWay?: PreferenceValues["diffWay"];
+  } = { diffWay: "words" }
+) {
   if (!text1 || !text2) {
     return "";
   }
-  const { diffWay, ignoreCase = true } = getPreferenceValues();
+  const { diffWay = "words" } = options;
+  const { ignoreCase = true } = getPreferenceValues();
   const diffMethod = diffMethods[diffWay];
 
   const diff = diffMethod(text1, text2, {
@@ -32,6 +39,9 @@ export function generateMarkdownDiff(text1: string, text2: string) {
       markdown += prefixSymbol + `~~${part.value.trim()}~~` + suffixSymbol;
     } else {
       markdown += part.value;
+    }
+    if (diffWay === "sentences") {
+      markdown += "\n";
     }
   });
 

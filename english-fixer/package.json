@@ -52,27 +52,6 @@
     },
     {
       "required": false,
-      "name": "diffWay",
-      "title": "Diff way",
-      "description": "How do you want to diff the text?",
-      "type": "dropdown",
-      "default": "words",
-      "data": [
-        {
-          "title": "Words",
-          "value": "words"
-        },
-        {
-          "title": "Characters",
-          "value": "chars"
-        },
-        {
-          "title": "Sentences",
-          "value": "sentences"
-        }
-      ]
-    },
-    {
       "name": "ignoreCase",
       "description": "We have provide a diff function to show the difference between the original text and the fixed text. You can choose to ignore case when diff.",
       "type": "checkbox",

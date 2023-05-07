@@ -36,11 +36,12 @@ export default function Command(props: LaunchProps<{ draftValues: FormValues }>)
       console.log(completion);
       const res = JSON.parse(completion || "{}");
 
-      const newConversation = {
+      const newConversation: Conversation = {
         original: originalText,
         improved: res.improved,
         explanation: res.explanation,
         correct: res.correct,
+        diffWay: "words",
       };
       setError("");
 
