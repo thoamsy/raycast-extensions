@@ -34,6 +34,7 @@ export default function Command() {
   const [conversationHistory, setConversationHistory] = useCachedState<Conversation[]>(CONVERSATION_KEY, []);
 
   const [isSelectingDraft, setSelectingDraft] = useState(false);
+  const [showingDetail, setShowingDetail] = useState<boolean | undefined>();
 
   return (
     <List
@@ -47,7 +48,9 @@ export default function Command() {
       searchBarPlaceholder="Type the sentence you want to check"
       navigationTitle="English Teacher"
       isLoading={isSubmiting}
-      isShowingDetail={!isSelectingDraft && conversationHistory.length > 0}
+      isShowingDetail={
+        typeof showingDetail === "boolean" ? showingDetail : !isSelectingDraft && conversationHistory.length > 0
+      }
     >
       {!!searchText && (
         <List.Section title="Draft">
@@ -101,13 +104,33 @@ export default function Command() {
             <List.Item
               title={conversation.original}
               key={index}
-              accessories={conversation.correct ? [{ icon: { tintColor: Color.Green, source: Icon.CheckCircle } }] : []}
+              accessories={
+                conversation.correct
+                  ? [{ date: new Date() }, { icon: { tintColor: Color.Green, source: Icon.CheckCircle } }]
+                  : []
+              }
               actions={
                 <ActionPanel>
                   <Action.CopyToClipboard
                     shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                     title="Copy Improved"
                     content={conversation.improved}
+                  />
+                  <Action
+                    title="Show Detail"
+                    icon={Icon.AppWindowSidebarRight}
+                    shortcut={{ key: "arrowRight", modifiers: ["cmd"] }}
+                    onAction={() => {
+                      setShowingDetail(true);
+                    }}
+                  />
+                  <Action
+                    icon={Icon.AppWindow}
+                    title="Hide Detail"
+                    shortcut={{ key: "arrowLeft", modifiers: ["cmd"] }}
+                    onAction={() => {
+                      setShowingDetail(false);
+                    }}
                   />
                   <Action
                     shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
@@ -132,6 +155,16 @@ export default function Command() {
               detail={
                 <List.Item.Detail
                   isLoading={isSubmiting}
+                  metadata={
+                    conversation.correct ? (
+                      <List.Item.Detail.Metadata>
+                        <List.Item.Detail.Metadata.Label
+                          title="Correct"
+                          icon={{ tintColor: Color.Green, source: Icon.CheckCircle }}
+                        />
+                      </List.Item.Detail.Metadata>
+                    ) : undefined
+                  }
                   markdown={
                     isSubmiting
                       ? "Waiting…"
