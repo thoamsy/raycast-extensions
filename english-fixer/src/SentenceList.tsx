@@ -6,12 +6,13 @@ import {
   List,
   Icon,
   openCommandPreferences,
+  getSelectedText,
   confirmAlert,
   Alert,
   Color,
 } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getResponse } from "./utils/initChat";
 import { generateMarkdownDiff } from "./utils/diff";
 
@@ -40,6 +41,16 @@ export default function Command() {
 
   const [showingDetail, setShowingDetail] = useState<boolean | undefined>();
 
+  useEffect(() => {
+    getSelectedText()
+      .then((text) => {
+        setSearchText(text.trim());
+      })
+      .catch(() => {
+        console.log("nothing");
+      });
+  }, []);
+
   const onAskingChatGPT = async (originalText: string, index?: number) => {
     if (isSubmiting) {
       return;
@@ -59,7 +70,6 @@ export default function Command() {
 
       const newConversation = {
         original: originalText,
-        // diff: generateMarkdownDiff(originalText, res.improved),
         improved: res.improved,
         explanation: res.explanation,
         correct: res.correct,
