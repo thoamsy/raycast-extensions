@@ -1,7 +1,12 @@
-import { diffChars } from "diff";
+import { diffChars, diffWords } from "diff";
+import { getPreferenceValues } from "./getPreferenceValues";
 
 export function generateMarkdownDiff(text1: string, text2: string) {
-  const diff = diffChars(text1, text2, {
+  const { diffWay } = getPreferenceValues();
+  const diffMethod = diffWay === "words" ? diffWords : diffChars;
+  console.log(diffWay);
+
+  const diff = diffMethod(text1, text2, {
     ignoreCase: true,
   });
 
@@ -16,6 +21,8 @@ export function generateMarkdownDiff(text1: string, text2: string) {
       markdown += part.value;
     }
   });
+
+  console.log(diff);
 
   return markdown;
 }

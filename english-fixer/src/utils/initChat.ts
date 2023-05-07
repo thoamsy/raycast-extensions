@@ -1,8 +1,8 @@
 import { Configuration, OpenAIApi } from "openai";
-import { key } from "./apikey";
+import { getPreferenceValues } from "./getPreferenceValues";
 
 const configuration = new Configuration({
-  apiKey: key,
+  apiKey: getPreferenceValues().openAIKey,
 });
 const openai = new OpenAIApi(configuration);
 
