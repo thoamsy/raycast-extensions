@@ -21,6 +21,7 @@
   ],
   "dependencies": {
     "@raycast/api": "^1.50.1",
+    "@raycast/utils": "^1.5.2",
     "chalk": "^5.2.0",
     "diff": "^5.1.0",
     "openai": "^3.2.1"

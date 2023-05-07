@@ -1,44 +1,56 @@
-import { ActionPanel, Action, showToast, Toast, List, Icon, openCommandPreferences, LocalStorage } from "@raycast/api";
+import {
+  ActionPanel,
+  Action,
+  showToast,
+  Toast,
+  List,
+  Icon,
+  openCommandPreferences,
+  confirmAlert,
+  Alert,
+} from "@raycast/api";
+import { useCachedState } from "@raycast/utils";
 import { useState, useEffect } from "react";
 import { getResponse } from "./utils/initChat";
 import { generateMarkdownDiff } from "./utils/diff";
 
-const searchDraft = "SEARCH_DRAFT";
+const SEARCH_DRAFT_KEY = "SEARCH_DRAFT_KEY";
+const CONVERSATION_KEY = "CONVERSATION_KEY";
+const draftID = "draft";
+
+type Conversation = {
+  original: string;
+  improved: string;
+  explanation: string;
+  diff: string;
+};
 
 export default function Command() {
-  const [res, setRes] = useState<{ improved: string; reason: string }>({ improved: "", reason: "" });
   const [isSubmiting, setIsSubmiting] = useState(false);
 
-  const [searchText, setSearchText] = useState(() => "");
-  const [diff, setDiff] = useState("");
+  const [searchText, setSearchText] = useCachedState(SEARCH_DRAFT_KEY, "");
+  const [conversationHistory, setConversationHistory] = useCachedState<Conversation[]>(CONVERSATION_KEY, []);
 
-  useEffect(() => {
-    async function getDraftSearchText() {
-      const draft = (await LocalStorage.getItem(searchDraft)) || "";
-      if (draft) {
-        setSearchText(String(draft));
-      }
-    }
-    getDraftSearchText();
-  }, []);
-
-  const hasDraftButNotSubmit = searchText && !res.improved;
+  const [isSelectingDraft, setSelectingDraft] = useState(false);
 
   return (
     <List
       searchText={searchText}
+      onSelectionChange={(id) => {
+        setSelectingDraft(id === draftID);
+      }}
       onSearchTextChange={(text) => {
         setSearchText(text);
-        LocalStorage.setItem(searchDraft, text);
       }}
       searchBarPlaceholder="Type the sentence you want to check"
       navigationTitle="English Teacher"
       isLoading={isSubmiting}
-      isShowingDetail={!!res.improved || isSubmiting}
+      isShowingDetail={!isSelectingDraft && conversationHistory.length > 0}
     >
-      {hasDraftButNotSubmit ? (
+      {!!searchText && (
         <List.Section title="Draft">
           <List.Item
+            id={draftID}
             actions={
               <ActionPanel>
                 <Action.SubmitForm
@@ -57,9 +69,17 @@ export default function Command() {
                       const completion = await getResponse(searchText);
                       console.log(completion);
                       const res = JSON.parse(completion || "{}");
-                      setRes(res);
-                      setDiff(generateMarkdownDiff(searchText, res.improved));
-                      LocalStorage.setItem(searchDraft, "");
+
+                      setConversationHistory((history) => [
+                        {
+                          diff: generateMarkdownDiff(searchText, res.improved),
+                          improved: res.improved,
+                          original: searchText,
+                          explanation: res.explanation,
+                        },
+                        ...history,
+                      ]);
+                      setSearchText("");
                     } finally {
                       setIsSubmiting(false);
                       toast.hide();
@@ -71,53 +91,57 @@ export default function Command() {
             title={searchText}
           />
         </List.Section>
-      ) : searchText ? (
+      )}
+      {conversationHistory.length > 0 ? (
         <List.Section title="History">
-          <List.Item
-            title={searchText}
-            actions={
-              <ActionPanel>
-                <Action.SubmitForm
-                  title="Submit"
-                  onSubmit={async () => {
-                    if (isSubmiting) {
-                      return;
-                    }
-                    LocalStorage.setItem(searchDraft, searchText);
-
-                    setIsSubmiting(true);
-                    const toast = await showToast({
-                      style: Toast.Style.Animated,
-                      title: "Asking…",
-                    });
-                    try {
-                      const completion = await getResponse(searchText);
-                      const res = JSON.parse(completion || "{}");
-                      console.log(res);
-                      setRes(res);
-                      setDiff(generateMarkdownDiff(searchText, res.improved));
-                      LocalStorage.setItem(searchDraft, "");
-                    } finally {
-                      setIsSubmiting(false);
-                      toast.hide();
-                    }
-                  }}
+          {conversationHistory.map((conversation, index) => (
+            <List.Item
+              title={conversation.original}
+              key={index}
+              actions={
+                <ActionPanel>
+                  {/* <Action.SubmitForm
+                    title="Submit"
+                    onSubmit={async () => {
+                    }}
+                  /> */}
+                  <Action.CopyToClipboard
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+                    title="Copy Improved"
+                    content={conversation.improved}
+                  />
+                  <Action
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
+                    title="Delete All History"
+                    icon={Icon.Trash}
+                    onAction={() => {
+                      confirmAlert({
+                        title: "Are you sure to delete all the history?",
+                        primaryAction: {
+                          title: "Delete",
+                          style: Alert.ActionStyle.Destructive,
+                          onAction() {
+                            setConversationHistory([]);
+                          },
+                        },
+                      });
+                    }}
+                  />
+                  <Action icon={Icon.Gear} title="Open Extension Preferences" onAction={openCommandPreferences} />
+                </ActionPanel>
+              }
+              detail={
+                <List.Item.Detail
+                  isLoading={isSubmiting}
+                  markdown={
+                    isSubmiting
+                      ? "Waiting…"
+                      : `### Improved\n${conversation.diff}\n### Explanation\n${conversation.explanation}`
+                  }
                 />
-                <Action.CopyToClipboard
-                  shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-                  title="Copy Improved"
-                  content={res.improved}
-                />
-                <Action icon={Icon.Gear} title="Open Extension Preferences" onAction={openCommandPreferences} />
-              </ActionPanel>
-            }
-            detail={
-              <List.Item.Detail
-                isLoading={isSubmiting}
-                markdown={isSubmiting ? "Waiting…" : `### Improved\n${diff}\n### Reason\n${res.reason}`}
-              />
-            }
-          />
+              }
+            />
+          ))}
         </List.Section>
       ) : (
         <List.EmptyView icon={{ source: Icon.Hammer }} title="Type you sentence and let me fix it" />
