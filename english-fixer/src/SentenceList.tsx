@@ -6,22 +6,19 @@ import {
   List,
   Icon,
   openCommandPreferences,
-  getSelectedText,
   confirmAlert,
   Alert,
   Color,
 } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { runAppleScript } from "run-applescript";
 import { getResponse } from "./utils/initChat";
 import { generateMarkdownDiff } from "./utils/diff";
 
-const SEARCH_DRAFT_KEY = "SEARCH_DRAFT_KEY";
 const CONVERSATION_KEY = "CONVERSATION_KEY";
-const draftID = "draft";
 
-type Conversation = {
+export type Conversation = {
   original: string;
   improved: string;
   explanation: string;
@@ -30,29 +27,17 @@ type Conversation = {
   error?: string;
 };
 
-export default function Command() {
+export default function SentenceList() {
   const [isSubmiting, setIsSubmiting] = useState(false);
 
-  const [searchText, setSearchText] = useCachedState(SEARCH_DRAFT_KEY, "");
   // TODO: save up to 50 history
   const [conversationHistory, setConversationHistory] = useCachedState<Conversation[]>(CONVERSATION_KEY, []);
 
   const [selectedId, setSelectedId] = useState("");
-  const isSelectingDraft = selectedId === draftID;
 
-  const [showingDetail, setShowingDetail] = useState<boolean | undefined>();
+  const [showingDetail, setShowingDetail] = useState(true);
 
-  useEffect(() => {
-    getSelectedText()
-      .then((text) => {
-        setSearchText(text.trim());
-      })
-      .catch(() => {
-        console.log("nothing");
-      });
-  }, []);
-
-  const onAskingChatGPT = async (originalText: string, index?: number) => {
+  const onAskingChatGPT = async (originalText: string, index: number) => {
     if (isSubmiting) {
       return;
     }
@@ -60,9 +45,8 @@ export default function Command() {
     setIsSubmiting(true);
     const toast = await showToast({
       style: Toast.Style.Animated,
-      title: "Asking…",
+      title: "Rechecking…",
     });
-    const hasIndex = typeof index === "number";
 
     try {
       const completion = await getResponse(originalText);
@@ -78,28 +62,15 @@ export default function Command() {
 
       setConversationHistory((history) => {
         const copied = [...history];
-        copied.splice(index ?? 0, hasIndex ? 1 : 0, newConversation);
+        copied.splice(index ?? 0, 1, newConversation);
         return copied;
       });
 
-      setSearchText("");
       return true;
     } catch (error) {
       setConversationHistory((history) => {
         const copied = [...history];
-        copied.splice(
-          index ?? 0,
-          hasIndex ? 1 : 0,
-          hasIndex
-            ? { ...copied[index], error: (error as Error).message }
-            : {
-                // diff: "",
-                improved: "",
-                original: searchText,
-                explanation: "",
-                error: (error as Error).message,
-              }
-        );
+        copied.splice(index ?? 0, 1, { ...copied[index], error: (error as Error).message });
         return copied;
       });
       return false;
@@ -113,35 +84,15 @@ export default function Command() {
 
   return (
     <List
-      searchText={searchText}
       onSelectionChange={(id) => {
         if (id) {
           setSelectedId(id);
         }
       }}
-      onSearchTextChange={(text) => {
-        setSearchText(text);
-      }}
-      searchBarPlaceholder="Type the sentence you want to check"
-      navigationTitle="English Teacher"
+      navigationTitle="History"
       isLoading={isSubmiting}
-      isShowingDetail={
-        typeof showingDetail === "boolean" ? showingDetail : !isSelectingDraft && conversationHistory.length > 0
-      }
+      isShowingDetail={showingDetail}
     >
-      {!!searchText && (
-        <List.Section title="Draft">
-          <List.Item
-            id={draftID}
-            actions={
-              <ActionPanel>
-                <Action.SubmitForm title="Check" onSubmit={() => onAskingChatGPT(searchText)} />
-              </ActionPanel>
-            }
-            title={searchText}
-          />
-        </List.Section>
-      )}
       {conversationHistory.length > 0 ? (
         <List.Section title="History">
           {conversationHistory.map((conversation, index) => {
