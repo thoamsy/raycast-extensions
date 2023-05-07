@@ -8,9 +8,10 @@ import {
   openCommandPreferences,
   confirmAlert,
   Alert,
+  Color,
 } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getResponse } from "./utils/initChat";
 import { generateMarkdownDiff } from "./utils/diff";
 
@@ -23,6 +24,7 @@ type Conversation = {
   improved: string;
   explanation: string;
   diff: string;
+  correct?: boolean;
 };
 
 export default function Command() {
@@ -76,6 +78,7 @@ export default function Command() {
                           improved: res.improved,
                           original: searchText,
                           explanation: res.explanation,
+                          correct: res.correct,
                         },
                         ...history,
                       ]);
@@ -98,13 +101,9 @@ export default function Command() {
             <List.Item
               title={conversation.original}
               key={index}
+              accessories={conversation.correct ? [{ icon: { tintColor: Color.Green, source: Icon.CheckCircle } }] : []}
               actions={
                 <ActionPanel>
-                  {/* <Action.SubmitForm
-                    title="Submit"
-                    onSubmit={async () => {
-                    }}
-                  /> */}
                   <Action.CopyToClipboard
                     shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                     title="Copy Improved"
