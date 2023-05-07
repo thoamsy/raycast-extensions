@@ -23,24 +23,88 @@ type Conversation = {
   original: string;
   improved: string;
   explanation: string;
-  diff: string;
+  // diff: string;
   correct?: boolean;
+  error?: string;
 };
 
 export default function Command() {
   const [isSubmiting, setIsSubmiting] = useState(false);
 
   const [searchText, setSearchText] = useCachedState(SEARCH_DRAFT_KEY, "");
+  // TODO: save up to 50 history
   const [conversationHistory, setConversationHistory] = useCachedState<Conversation[]>(CONVERSATION_KEY, []);
 
-  const [isSelectingDraft, setSelectingDraft] = useState(false);
+  const [selectedId, setSelectedId] = useState("");
+  const isSelectingDraft = selectedId === draftID;
+
   const [showingDetail, setShowingDetail] = useState<boolean | undefined>();
+
+  const onAskingChatGPT = async (originalText: string, index?: number) => {
+    if (isSubmiting) {
+      return;
+    }
+
+    setIsSubmiting(true);
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Asking…",
+    });
+    const hasIndex = typeof index === "number";
+
+    try {
+      const completion = await getResponse(originalText);
+      console.log(completion);
+      const res = JSON.parse(completion || "{}");
+
+      const newConversation = {
+        original: originalText,
+        // diff: generateMarkdownDiff(originalText, res.improved),
+        improved: res.improved,
+        explanation: res.explanation,
+        correct: res.correct,
+      };
+
+      setConversationHistory((history) => {
+        const copied = [...history];
+        copied.splice(index ?? 0, hasIndex ? 1 : 0, newConversation);
+        return copied;
+      });
+
+      setSearchText("");
+      return true;
+    } catch (error) {
+      setConversationHistory((history) => {
+        const copied = [...history];
+        copied.splice(
+          index ?? 0,
+          hasIndex ? 1 : 0,
+          hasIndex
+            ? { ...copied[index], error: (error as Error).message }
+            : {
+                // diff: "",
+                improved: "",
+                original: searchText,
+                explanation: "",
+                error: (error as Error).message,
+              }
+        );
+        return copied;
+      });
+      return false;
+    } finally {
+      setIsSubmiting(false);
+      toast.hide();
+    }
+  };
 
   return (
     <List
       searchText={searchText}
       onSelectionChange={(id) => {
-        setSelectingDraft(id === draftID);
+        if (id) {
+          setSelectedId(id);
+        }
       }}
       onSearchTextChange={(text) => {
         setSearchText(text);
@@ -58,40 +122,7 @@ export default function Command() {
             id={draftID}
             actions={
               <ActionPanel>
-                <Action.SubmitForm
-                  title="Submit"
-                  onSubmit={async () => {
-                    if (isSubmiting) {
-                      return;
-                    }
-
-                    setIsSubmiting(true);
-                    const toast = await showToast({
-                      style: Toast.Style.Animated,
-                      title: "Asking…",
-                    });
-                    try {
-                      const completion = await getResponse(searchText);
-                      console.log(completion);
-                      const res = JSON.parse(completion || "{}");
-
-                      setConversationHistory((history) => [
-                        {
-                          diff: generateMarkdownDiff(searchText, res.improved),
-                          improved: res.improved,
-                          original: searchText,
-                          explanation: res.explanation,
-                          correct: res.correct,
-                        },
-                        ...history,
-                      ]);
-                      setSearchText("");
-                    } finally {
-                      setIsSubmiting(false);
-                      toast.hide();
-                    }
-                  }}
-                />
+                <Action.SubmitForm title="Submit" onSubmit={() => onAskingChatGPT(searchText)} />
               </ActionPanel>
             }
             title={searchText}
@@ -100,80 +131,91 @@ export default function Command() {
       )}
       {conversationHistory.length > 0 ? (
         <List.Section title="History">
-          {conversationHistory.map((conversation, index) => (
-            <List.Item
-              title={conversation.original}
-              key={index}
-              accessories={
-                conversation.correct
-                  ? [{ date: new Date() }, { icon: { tintColor: Color.Green, source: Icon.CheckCircle } }]
-                  : []
-              }
-              actions={
-                <ActionPanel>
-                  <Action.CopyToClipboard
-                    shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-                    title="Copy Improved"
-                    content={conversation.improved}
-                  />
-                  <Action
-                    title="Show Detail"
-                    icon={Icon.AppWindowSidebarRight}
-                    shortcut={{ key: "arrowRight", modifiers: ["cmd"] }}
-                    onAction={() => {
-                      setShowingDetail(true);
-                    }}
-                  />
-                  <Action
-                    icon={Icon.AppWindow}
-                    title="Hide Detail"
-                    shortcut={{ key: "arrowLeft", modifiers: ["cmd"] }}
-                    onAction={() => {
-                      setShowingDetail(false);
-                    }}
-                  />
-                  <Action
-                    shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
-                    title="Delete All History"
-                    icon={Icon.Trash}
-                    onAction={() => {
-                      confirmAlert({
-                        title: "Are you sure to delete all the history?",
-                        primaryAction: {
-                          title: "Delete",
-                          style: Alert.ActionStyle.Destructive,
-                          onAction() {
-                            setConversationHistory([]);
+          {conversationHistory.map((conversation, index) => {
+            const diff = selectedId.endsWith("" + index)
+              ? generateMarkdownDiff(conversation.original, conversation.improved)
+              : "";
+            return (
+              <List.Item
+                title={conversation.original}
+                id={"history-" + index}
+                key={index}
+                accessories={
+                  conversation.correct
+                    ? [{ date: new Date() }, { icon: { tintColor: Color.Green, source: Icon.CheckCircle } }]
+                    : []
+                }
+                actions={
+                  <ActionPanel>
+                    <Action.SubmitForm
+                      onSubmit={() => onAskingChatGPT(conversation.original, index)}
+                      icon={Icon.RotateClockwise}
+                      title="Recheck"
+                    />
+                    <Action.CopyToClipboard
+                      shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+                      title="Copy Improved"
+                      content={conversation.improved}
+                    />
+                    <Action
+                      title="Show Detail"
+                      icon={Icon.AppWindowSidebarRight}
+                      shortcut={{ key: "arrowRight", modifiers: ["cmd"] }}
+                      onAction={() => {
+                        setShowingDetail(true);
+                      }}
+                    />
+                    <Action
+                      icon={Icon.AppWindow}
+                      title="Hide Detail"
+                      shortcut={{ key: "arrowLeft", modifiers: ["cmd"] }}
+                      onAction={() => {
+                        setShowingDetail(false);
+                      }}
+                    />
+                    <Action
+                      shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
+                      title="Delete All History"
+                      icon={Icon.Trash}
+                      onAction={() => {
+                        confirmAlert({
+                          title: "Are you sure to delete all the history?",
+                          primaryAction: {
+                            title: "Delete",
+                            style: Alert.ActionStyle.Destructive,
+                            onAction() {
+                              setConversationHistory([]);
+                            },
                           },
-                        },
-                      });
-                    }}
+                        });
+                      }}
+                    />
+                    <Action icon={Icon.Gear} title="Open Extension Preferences" onAction={openCommandPreferences} />
+                  </ActionPanel>
+                }
+                detail={
+                  <List.Item.Detail
+                    isLoading={isSubmiting}
+                    metadata={
+                      conversation.correct && !isSubmiting ? (
+                        <List.Item.Detail.Metadata>
+                          <List.Item.Detail.Metadata.Label
+                            title="Correct"
+                            icon={{ tintColor: Color.Green, source: Icon.CheckCircle }}
+                          />
+                        </List.Item.Detail.Metadata>
+                      ) : undefined
+                    }
+                    markdown={
+                      isSubmiting
+                        ? "Waiting…"
+                        : conversation.error || `### Improved\n${diff}\n### Explanation\n${conversation.explanation}`
+                    }
                   />
-                  <Action icon={Icon.Gear} title="Open Extension Preferences" onAction={openCommandPreferences} />
-                </ActionPanel>
-              }
-              detail={
-                <List.Item.Detail
-                  isLoading={isSubmiting}
-                  metadata={
-                    conversation.correct ? (
-                      <List.Item.Detail.Metadata>
-                        <List.Item.Detail.Metadata.Label
-                          title="Correct"
-                          icon={{ tintColor: Color.Green, source: Icon.CheckCircle }}
-                        />
-                      </List.Item.Detail.Metadata>
-                    ) : undefined
-                  }
-                  markdown={
-                    isSubmiting
-                      ? "Waiting…"
-                      : `### Improved\n${conversation.diff}\n### Explanation\n${conversation.explanation}`
-                  }
-                />
-              }
-            />
-          ))}
+                }
+              />
+            );
+          })}
         </List.Section>
       ) : (
         <List.EmptyView icon={{ source: Icon.Hammer }} title="Type you sentence and let me fix it" />

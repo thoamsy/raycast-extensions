@@ -1,8 +1,9 @@
 import { getPreferenceValues as get } from "@raycast/api";
 
-interface PreferenceValues {
+export interface PreferenceValues {
   openAIKey: string;
-  diffWay: "words" | "chars";
+  diffWay: "words" | "chars" | "sentences";
+  ignoreCase?: boolean;
 }
 
 export const getPreferenceValues = () => get<PreferenceValues>();

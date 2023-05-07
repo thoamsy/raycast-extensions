@@ -50,6 +50,7 @@
       "name": "openAIKey"
     },
     {
+      "required": false,
       "name": "diffWay",
       "title": "Diff way",
       "description": "How do you want to diff the text?",
@@ -63,8 +64,19 @@
         {
           "title": "Characters",
           "value": "chars"
+        },
+        {
+          "title": "Sentences",
+          "value": "sentences"
         }
       ]
+    },
+    {
+      "name": "ignoreCase",
+      "description": "We have provide a diff function to show the difference between the original text and the fixed text. You can choose to ignore case when diff.",
+      "type": "checkbox",
+      "default": true,
+      "label": "Ignore case when diff"
     }
   ]
 }
