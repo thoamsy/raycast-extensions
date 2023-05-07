@@ -142,7 +142,11 @@ export default function SentenceList() {
                       icon={Icon.RotateClockwise}
                       title="Recheck"
                     />
-                    <ActionPanel.Submenu icon={Icon.Switch} title="Update Diff Way">
+                    <ActionPanel.Submenu
+                      shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
+                      icon={Icon.Switch}
+                      title="Update Diff Way"
+                    >
                       {DIFF_WAYS.map((way) => (
                         <Action
                           title={way[0].toUpperCase() + way.slice(1).toLowerCase()}
