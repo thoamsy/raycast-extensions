@@ -147,49 +147,65 @@ export default function Command() {
                 }
                 actions={
                   <ActionPanel>
-                    <Action.SubmitForm
-                      onSubmit={() => onAskingChatGPT(conversation.original, index)}
-                      icon={Icon.RotateClockwise}
-                      title="Recheck"
-                    />
                     <Action.CopyToClipboard
                       shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                       title="Copy Improved"
                       content={conversation.improved}
                     />
                     <Action
-                      title="Show Detail"
-                      icon={Icon.AppWindowSidebarRight}
-                      shortcut={{ key: "arrowRight", modifiers: ["cmd"] }}
-                      onAction={() => {
-                        setShowingDetail(true);
-                      }}
+                      onAction={() => onAskingChatGPT(conversation.original, index)}
+                      icon={Icon.RotateClockwise}
+                      title="Recheck"
                     />
-                    <Action
-                      icon={Icon.AppWindow}
-                      title="Hide Detail"
-                      shortcut={{ key: "arrowLeft", modifiers: ["cmd"] }}
-                      onAction={() => {
-                        setShowingDetail(false);
-                      }}
-                    />
-                    <Action
-                      shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
-                      title="Delete All History"
-                      icon={Icon.Trash}
-                      onAction={() => {
-                        confirmAlert({
-                          title: "Are you sure to delete all the history?",
-                          primaryAction: {
-                            title: "Delete",
-                            style: Alert.ActionStyle.Destructive,
-                            onAction() {
-                              setConversationHistory([]);
+                    <ActionPanel.Section title="Detail">
+                      <Action
+                        title="Show Detail"
+                        icon={Icon.AppWindowSidebarRight}
+                        shortcut={{ key: "arrowRight", modifiers: ["cmd"] }}
+                        onAction={() => {
+                          setShowingDetail(true);
+                        }}
+                      />
+                      <Action
+                        icon={Icon.AppWindow}
+                        title="Hide Detail"
+                        shortcut={{ key: "arrowLeft", modifiers: ["cmd"] }}
+                        onAction={() => {
+                          setShowingDetail(false);
+                        }}
+                      />
+                    </ActionPanel.Section>
+                    <ActionPanel.Section title="Delete">
+                      <Action
+                        onAction={() =>
+                          setConversationHistory((history) => {
+                            const copied = history.slice();
+                            copied.splice(index, 1);
+                            return copied;
+                          })
+                        }
+                        shortcut={{ modifiers: ["cmd"], key: "delete" }}
+                        icon={Icon.Trash}
+                        title="Delete This Conversation"
+                      />
+                      <Action
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
+                        title="Delete All History"
+                        icon={Icon.Trash}
+                        onAction={() => {
+                          confirmAlert({
+                            title: "Are you sure to delete all the history?",
+                            primaryAction: {
+                              title: "Delete",
+                              style: Alert.ActionStyle.Destructive,
+                              onAction() {
+                                setConversationHistory([]);
+                              },
                             },
-                          },
-                        });
-                      }}
-                    />
+                          });
+                        }}
+                      />
+                    </ActionPanel.Section>
                     <Action icon={Icon.Gear} title="Open Extension Preferences" onAction={openCommandPreferences} />
                   </ActionPanel>
                 }
