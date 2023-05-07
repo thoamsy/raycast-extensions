@@ -13,6 +13,7 @@ import {
 } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
 import { useState, useEffect } from "react";
+import { runAppleScript } from "run-applescript";
 import { getResponse } from "./utils/initChat";
 import { generateMarkdownDiff } from "./utils/diff";
 
@@ -108,6 +109,8 @@ export default function Command() {
     }
   };
 
+  const speakerIcon = { icon: { tintColor: Color.Blue, source: Icon.SpeakerHigh }, tooltip: "Speak" };
+
   return (
     <List
       searchText={searchText}
@@ -132,7 +135,7 @@ export default function Command() {
             id={draftID}
             actions={
               <ActionPanel>
-                <Action.SubmitForm title="Submit" onSubmit={() => onAskingChatGPT(searchText)} />
+                <Action.SubmitForm title="Check" onSubmit={() => onAskingChatGPT(searchText)} />
               </ActionPanel>
             }
             title={searchText}
@@ -152,8 +155,8 @@ export default function Command() {
                 key={index}
                 accessories={
                   conversation.correct
-                    ? [{ date: new Date() }, { icon: { tintColor: Color.Green, source: Icon.CheckCircle } }]
-                    : []
+                    ? [{ icon: { tintColor: Color.Green, source: Icon.CheckCircle } }, speakerIcon]
+                    : [speakerIcon]
                 }
                 actions={
                   <ActionPanel>
@@ -167,6 +170,24 @@ export default function Command() {
                       icon={Icon.RotateClockwise}
                       title="Recheck"
                     />
+                    <ActionPanel.Section title="Speak">
+                      <Action
+                        shortcut={{ modifiers: ["cmd"], key: "s" }}
+                        title="Speak Improved"
+                        icon={Icon.SpeakerHigh}
+                        onAction={() => {
+                          runAppleScript(`say "${conversation.improved.replace(/"/g, "")}"`);
+                        }}
+                      />
+                      <Action
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "s" }}
+                        title="Speak Explanation"
+                        icon={Icon.SpeakerHigh}
+                        onAction={() => {
+                          runAppleScript(`say "${conversation.explanation.replace(/"/g, "")}"`);
+                        }}
+                      />
+                    </ActionPanel.Section>
                     <ActionPanel.Section title="Detail">
                       <Action
                         title="Show Detail"

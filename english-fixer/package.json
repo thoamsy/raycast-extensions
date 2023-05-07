@@ -24,7 +24,8 @@
     "@raycast/utils": "^1.5.2",
     "chalk": "^5.2.0",
     "diff": "^5.1.0",
-    "openai": "^3.2.1"
+    "openai": "^3.2.1",
+    "run-applescript": "^6.1.0"
   },
   "devDependencies": {
     "@raycast/eslint-config": "1.0.5",
