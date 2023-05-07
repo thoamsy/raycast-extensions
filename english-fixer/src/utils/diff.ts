@@ -24,7 +24,9 @@ export function generateMarkdownDiff(text1: string, text2: string) {
     const prefixSymbol = part.value.match(/^\s+/)?.[0] ?? "";
     const suffixSymbol = part.value.match(/\s+$/)?.[0] ?? "";
 
-    if (part.added) {
+    if (part.value.length === 1 && /\p{P}/u.test(part.value)) {
+      markdown += part.value;
+    } else if (part.added) {
       markdown += prefixSymbol + `**${part.value.trim()}**` + suffixSymbol;
     } else if (part.removed) {
       markdown += prefixSymbol + `~~${part.value.trim()}~~` + suffixSymbol;
