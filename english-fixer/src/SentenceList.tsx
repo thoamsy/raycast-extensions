@@ -12,10 +12,12 @@ import {
 } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
 import { useState, useEffect } from "react";
-import { runAppleScript } from "run-applescript";
-import { getResponse, getResponseStream } from "./utils/initChat";
-import { generateMarkdownDiff } from "./utils/diff";
-import { PreferenceValues, DIFF_WAYS } from "./utils/getPreferenceValues";
+import { getResponseStream } from "./utils/initChat";
+import { PreferenceValues } from "./utils/getPreferenceValues";
+
+// import { generateMarkdownDiff } from "./utils/diff";
+// import { PreferenceValues, DIFF_WAYS } from "./utils/getPreferenceValues";
+// import { runAppleScript } from "run-applescript";
 
 const CONVERSATION_KEY = "CONVERSATION_KEY";
 
@@ -24,8 +26,9 @@ const CONVERSATION_KEY = "CONVERSATION_KEY";
 // add date to supporting the section
 export type Conversation = {
   original: string;
-  improved: string;
-  explanation: string;
+  improved?: string;
+  explanation?: string;
+  responseMarkdown: string;
   correct?: boolean;
   error?: string;
   diffWay?: PreferenceValues["diffWay"];
@@ -39,74 +42,86 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
   const [conversationHistory, setConversationHistory] = useCachedState<Conversation[]>(CONVERSATION_KEY, []);
 
   const [selectedId, setSelectedId] = useState("");
-
   const [showingDetail, setShowingDetail] = useState(true);
+  const [chatGPTResponse, setChatGPTResponse] = useState("");
 
-  const onAskingChatGPT = async (originalText: string, index: number) => {
+  const fetchChatGPTResponse = async ({
+    sentences,
+    toastTitle,
+    onSuccess,
+    onError,
+  }: {
+    sentences: string;
+    toastTitle: string;
+    onSuccess: (c: Conversation) => void;
+    onError?(e: Error): void;
+  }) => {
+    setIsSubmiting(true);
+    const toast = showToast({
+      style: Toast.Style.Animated,
+      title: toastTitle,
+    });
+    try {
+      const generator = await getResponseStream(sentences);
+      let result = "";
+      for await (const token of generator) {
+        result += token;
+        setChatGPTResponse((prev) => prev + token);
+      }
+
+      setChatGPTResponse(result.replace(/```correct```/, ""));
+      onSuccess({
+        responseMarkdown: result.replace(/```correct```/, ""),
+        original: sentences,
+        correct: /```correct```$/.test(result),
+      });
+    } catch (error) {
+      onError?.(error as Error);
+    } finally {
+      (await toast).hide();
+      setIsSubmiting(false);
+    }
+  };
+
+  const onAskingChatGPT = (originalText: string, index: number) => {
     if (isSubmiting) {
       return;
     }
 
-    setIsSubmiting(true);
-    const toast = await showToast({
-      style: Toast.Style.Animated,
-      title: "Rechecking…",
+    return fetchChatGPTResponse({
+      sentences: originalText,
+      toastTitle: "Rechecking…",
+      onSuccess: (updatedConversation) => {
+        setConversationHistory((history) => {
+          const copied = [...history];
+          copied.splice(index ?? 0, 1, updatedConversation);
+          return copied;
+        });
+      },
+      onError(error) {
+        setConversationHistory((history) => {
+          const copied = [...history];
+          copied.splice(index ?? 0, 1, { ...copied[index], error: error.message });
+          return copied;
+        });
+      },
     });
-
-    try {
-      const completion = await getResponse(originalText);
-      console.log(completion);
-      const res = JSON.parse(completion || "{}");
-
-      const newConversation: Conversation = {
-        original: originalText,
-        improved: res.improved,
-        explanation: res.explanation,
-        correct: res.correct,
-      };
-
-      setConversationHistory((history) => {
-        const copied = [...history];
-        copied.splice(index ?? 0, 1, newConversation);
-        return copied;
-      });
-
-      return true;
-    } catch (error) {
-      setConversationHistory((history) => {
-        const copied = [...history];
-        copied.splice(index ?? 0, 1, { ...copied[index], error: (error as Error).message });
-        return copied;
-      });
-      return false;
-    } finally {
-      setIsSubmiting(false);
-      toast.hide();
-    }
   };
 
   const speakerIcon = { icon: { tintColor: Color.Blue, source: Icon.SpeakerHigh }, tooltip: "Speak" };
-  const [chatGPTResponse, setChatGPTResponse] = useState("");
 
   useEffect(() => {
     async function updateDetail() {
       if (!askingSentences) {
         return;
       }
-      setIsSubmiting(true);
-      const toast = await showToast({
-        style: Toast.Style.Animated,
-        title: "Asking…",
+      return fetchChatGPTResponse({
+        sentences: askingSentences,
+        toastTitle: "Asking…",
+        onSuccess(newConversation) {
+          setConversationHistory((history) => [newConversation, ...history]);
+        },
       });
-      try {
-        const generator = getResponseStream(askingSentences);
-        for await (const token of generator) {
-          setChatGPTResponse((prev) => prev + token);
-        }
-      } finally {
-        toast.hide();
-        setIsSubmiting(false);
-      }
     }
     updateDetail();
   }, [askingSentences]);
@@ -129,7 +144,7 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
             detail={
               <List.Item.Detail
                 isLoading={isSubmiting}
-                markdown={`### Original \n${askingSentences}\n${chatGPTResponse}`}
+                markdown={`### Original\n${askingSentences}\n${chatGPTResponse}`}
               />
             }
           />
@@ -138,24 +153,25 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
       {conversationHistory.length > 0 ? (
         <List.Section title="History">
           {conversationHistory.map((conversation, index) => {
-            const diff = selectedId.endsWith("" + index)
-              ? generateMarkdownDiff(conversation.original, conversation.improved, {
-                  diffWay: conversation.diffWay,
-                })
-              : "";
+            const diff = "";
+            // const diff = selectedId.endsWith("" + index)
+            //   ? generateMarkdownDiff(conversation.original, conversation.improved, {
+            //       diffWay: conversation.diffWay,
+            //     })
+            //   : "";
 
-            const onUpdateDiffWay = (diffWay: PreferenceValues["diffWay"]) => () => {
-              setConversationHistory((history) =>
-                history.map((item, i) =>
-                  i === index
-                    ? {
-                        ...item,
-                        diffWay,
-                      }
-                    : item
-                )
-              );
-            };
+            // const onUpdateDiffWay = (diffWay: PreferenceValues["diffWay"]) => () => {
+            //   setConversationHistory((history) =>
+            //     history.map((item, i) =>
+            //       i === index
+            //         ? {
+            //             ...item,
+            //             diffWay,
+            //           }
+            //         : item
+            //     )
+            //   );
+            // };
 
             return (
               <List.Item
@@ -172,14 +188,14 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                     <Action.CopyToClipboard
                       shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                       title="Copy Improved"
-                      content={conversation.improved}
+                      content={conversation.improved || "Coming Soon..."}
                     />
                     <Action
                       onAction={() => onAskingChatGPT(conversation.original, index)}
                       icon={Icon.RotateClockwise}
                       title="Recheck"
                     />
-                    <ActionPanel.Submenu
+                    {/* <ActionPanel.Submenu
                       shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
                       icon={Icon.Switch}
                       title="Update Diff Way"
@@ -191,8 +207,8 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                           onAction={onUpdateDiffWay(way)}
                         />
                       ))}
-                    </ActionPanel.Submenu>
-                    <ActionPanel.Section title="Speak">
+                    </ActionPanel.Submenu> */}
+                    {/* <ActionPanel.Section title="Speak">
                       <Action
                         shortcut={{ modifiers: ["cmd"], key: "s" }}
                         title="Speak Improved"
@@ -210,7 +226,7 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                           runAppleScript(`say "${conversation.explanation.replace(/"/g, "")}"`);
                         }}
                       />
-                    </ActionPanel.Section>
+                    </ActionPanel.Section> */}
                     <ActionPanel.Section title="Detail">
                       <Action
                         title="Show Detail"
@@ -277,8 +293,8 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                       ) : undefined
                     }
                     markdown={
-                      isSubmiting
-                        ? "Waiting…"
+                      conversation.responseMarkdown
+                        ? `### Original\n${conversation.original}\n${conversation.responseMarkdown}`
                         : conversation.error || `### Improved\n${diff}\n### Explanation\n${conversation.explanation}`
                     }
                   />
