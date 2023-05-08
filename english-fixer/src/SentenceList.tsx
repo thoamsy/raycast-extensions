@@ -11,9 +11,9 @@ import {
   Color,
 } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { runAppleScript } from "run-applescript";
-import { getResponse } from "./utils/initChat";
+import { getResponse, getResponseStream } from "./utils/initChat";
 import { generateMarkdownDiff } from "./utils/diff";
 import { PreferenceValues, DIFF_WAYS } from "./utils/getPreferenceValues";
 
@@ -32,7 +32,7 @@ export type Conversation = {
 };
 
 // need Date
-export default function SentenceList() {
+export default function SentenceList({ askingSentences }: { askingSentences?: string }) {
   const [isSubmiting, setIsSubmiting] = useState(false);
 
   // TODO: save up to 50 history
@@ -86,6 +86,30 @@ export default function SentenceList() {
   };
 
   const speakerIcon = { icon: { tintColor: Color.Blue, source: Icon.SpeakerHigh }, tooltip: "Speak" };
+  const [chatGPTResponse, setChatGPTResponse] = useState("");
+
+  useEffect(() => {
+    async function updateDetail() {
+      if (!askingSentences) {
+        return;
+      }
+      setIsSubmiting(true);
+      const toast = await showToast({
+        style: Toast.Style.Animated,
+        title: "Asking…",
+      });
+      try {
+        const generator = getResponseStream(askingSentences);
+        for await (const token of generator) {
+          setChatGPTResponse((prev) => prev + token);
+        }
+      } finally {
+        toast.hide();
+        setIsSubmiting(false);
+      }
+    }
+    updateDetail();
+  }, [askingSentences]);
 
   return (
     <List
@@ -98,6 +122,19 @@ export default function SentenceList() {
       isLoading={isSubmiting}
       isShowingDetail={showingDetail}
     >
+      {askingSentences && (
+        <List.Section title="Asking…">
+          <List.Item
+            title={askingSentences}
+            detail={
+              <List.Item.Detail
+                isLoading={isSubmiting}
+                markdown={`### Original \n${askingSentences}\n${chatGPTResponse}`}
+              />
+            }
+          />
+        </List.Section>
+      )}
       {conversationHistory.length > 0 ? (
         <List.Section title="History">
           {conversationHistory.map((conversation, index) => {
@@ -160,6 +197,7 @@ export default function SentenceList() {
                         shortcut={{ modifiers: ["cmd"], key: "s" }}
                         title="Speak Improved"
                         icon={Icon.SpeakerHigh}
+                        // need find a way to stop it
                         onAction={() => {
                           runAppleScript(`say "${conversation.improved.replace(/"/g, "")}"`);
                         }}

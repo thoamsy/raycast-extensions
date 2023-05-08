@@ -1,6 +1,5 @@
 import { Form, ActionPanel, Action, LaunchProps, Toast, showToast, useNavigation } from "@raycast/api";
 import { useState } from "react";
-import { getResponse } from "./utils/initChat";
 import { useCachedState } from "@raycast/utils";
 import SentenceList, { Conversation } from "./SentenceList";
 
@@ -14,54 +13,12 @@ export default function Command(props: LaunchProps<{ draftValues: FormValues }>)
   const { draftValues } = props;
 
   const [sentences, setSentences] = useState<string>(draftValues?.sentences || "");
-  const [isSubmiting, setIsSubmiting] = useState(false);
   const { push } = useNavigation();
-  const [error, setError] = useState("");
 
-  const [conversationHistory, setConversationHistory] = useCachedState<Conversation[]>(CONVERSATION_KEY, []);
+  const [conversationHistory] = useCachedState<Conversation[]>(CONVERSATION_KEY, []);
 
-  const onAskingChatGPT = async (originalText: string) => {
-    if (isSubmiting) {
-      return;
-    }
-
-    setIsSubmiting(true);
-    const toast = await showToast({
-      style: Toast.Style.Animated,
-      title: "Asking…",
-    });
-
-    try {
-      const completion = await getResponse(originalText);
-      console.log(completion);
-      const res = JSON.parse(completion || "{}");
-
-      const newConversation: Conversation = {
-        original: originalText,
-        improved: res.improved,
-        explanation: res.explanation,
-        correct: res.correct,
-        diffWay: "words",
-      };
-      setError("");
-
-      setConversationHistory((history) => {
-        return [newConversation, ...history];
-      });
-
-      push(<SentenceList />);
-      return true;
-    } catch (error) {
-      setError(error.message);
-      return false;
-    } finally {
-      setIsSubmiting(false);
-      toast.hide();
-    }
-  };
   return (
     <Form
-      isLoading={isSubmiting}
       navigationTitle="Sentence Checker"
       enableDrafts
       actions={
@@ -77,9 +34,10 @@ export default function Command(props: LaunchProps<{ draftValues: FormValues }>)
                   return;
                 }
 
-                if (await onAskingChatGPT(values.sentences)) {
-                  setSentences("");
-                }
+                push(<SentenceList askingSentences={values.sentences} />);
+                // if (await onAskingChatGPT(values.sentences)) {
+                //   setSentences("");
+                // }
               }}
             />
           )}
@@ -108,7 +66,6 @@ export default function Command(props: LaunchProps<{ draftValues: FormValues }>)
         value={sentences}
         onChange={setSentences}
       />
-      {error && <Form.Description title="Error Message" text={error} />}
     </Form>
   );
 }
