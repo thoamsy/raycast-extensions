@@ -5,10 +5,11 @@ const configuration = new Configuration({
   apiKey: getPreferenceValues().openAIKey,
 });
 const openai = new OpenAIApi(configuration);
+export const IMPROVED_HEADLINE = "Improved";
 
 const getJSONPrompt = (sentence: string) => `
 I will send you some English statements which are delivered by triple backticks. And you should help me to find the grammar issues or word typo in it and returns the improved version which should be a string. If nothing is wrong, just return the original statement. So the steps should be:
-1. add a key "improved" which is the improved version of the original statement
+1. add a key "${IMPROVED_HEADLINE.toLowerCase()}" which is the improved version of the original statement
 2. add a key "explanation" which is the explanation why you think it is wrong or not. I will learn from you
 3. if my sentence is correct, you should add a key "correct" which is true
 
@@ -18,13 +19,13 @@ NOTE: Please don't add any extra text in the response, only returns the JSON for
 
 const getStreamTextPrompt = (sentence: string) => `
 I will send you some English statements which are delivered by triple backticks. And you should help me to find the grammar issues or word typo in it and returns the improved version which should be a string. If nothing is wrong, just return the original statement. You should give me a markdown format text which contains the following information:
-1. ### Improved
+1. ### ${IMPROVED_HEADLINE}
 2. after the the it, you should break a new line, and add the improved version of the original statement. Do not wrap the content with triple backticks
 3. ### Explanation
 4. after the the it, you should break a new line, and add the explanation why you think it is wrong or not. I will learn from you. Do not wrap the content with triple backticks
 5. If my sentence is correct and no any issues,  you should add \`\`\`correct\`\`\` in the end of the text. So I will know that you think it is correct.
 6. if you can't identified what's the language I sent to you, you should break a new line and tell me the error message.
-NOTE: Please do not criticize the correct use of punctuation.
+NOTE: Please do not criticize the correct use of punctuation,
 
 Here is my sentence:
 \`\`\`${sentence}\`\`\`

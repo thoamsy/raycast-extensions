@@ -12,11 +12,10 @@ import {
 } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
 import { useState, useEffect } from "react";
-import { getResponseStream } from "./utils/initChat";
-import { PreferenceValues } from "./utils/getPreferenceValues";
+import { getResponseStream, IMPROVED_HEADLINE } from "./utils/initChat";
+import { PreferenceValues, DIFF_WAYS } from "./utils/getPreferenceValues";
 
-// import { generateMarkdownDiff } from "./utils/diff";
-// import { PreferenceValues, DIFF_WAYS } from "./utils/getPreferenceValues";
+import { generateMarkdownDiff } from "./utils/diff";
 // import { runAppleScript } from "run-applescript";
 
 const CONVERSATION_KEY = "CONVERSATION_KEY";
@@ -33,6 +32,9 @@ export type Conversation = {
   error?: string;
   diffWay?: PreferenceValues["diffWay"];
 };
+
+const improvedPattern = new RegExp(`^### ${IMPROVED_HEADLINE}\\n([\\s\\S]*?)(?=\\n###|$)`);
+const isCorrectPattern = new RegExp("```correct```", "i");
 
 // need Date
 export default function SentenceList({ askingSentences }: { askingSentences?: string }) {
@@ -69,11 +71,11 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
         setChatGPTResponse((prev) => prev + token);
       }
 
-      setChatGPTResponse(result.replace(/```correct```/, ""));
+      setChatGPTResponse(result.replace(isCorrectPattern, ""));
       onSuccess({
-        responseMarkdown: result.replace(/```correct```/, ""),
+        responseMarkdown: result.replace(isCorrectPattern, ""),
         original: sentences,
-        correct: /```correct```$/.test(result),
+        correct: /```correct```$/i.test(result),
       });
     } catch (error) {
       onError?.(error as Error);
@@ -153,25 +155,42 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
       {conversationHistory.length > 0 ? (
         <List.Section title="History">
           {conversationHistory.map((conversation, index) => {
-            const diff = "";
-            // const diff = selectedId.endsWith("" + index)
-            //   ? generateMarkdownDiff(conversation.original, conversation.improved, {
-            //       diffWay: conversation.diffWay,
-            //     })
-            //   : "";
+            let matchImproved = "";
+            let diff = "";
+            let markdown = "";
 
-            // const onUpdateDiffWay = (diffWay: PreferenceValues["diffWay"]) => () => {
-            //   setConversationHistory((history) =>
-            //     history.map((item, i) =>
-            //       i === index
-            //         ? {
-            //             ...item,
-            //             diffWay,
-            //           }
-            //         : item
-            //     )
-            //   );
-            // };
+            if (selectedId.endsWith("" + index)) {
+              if (conversation.responseMarkdown) {
+                const matched = conversation.responseMarkdown.match(improvedPattern);
+                if (matched) {
+                  matchImproved = matched[1];
+                  diff = selectedId.endsWith("" + index)
+                    ? generateMarkdownDiff(conversation.original, matchImproved, {
+                        diffWay: conversation.diffWay,
+                      })
+                    : "";
+
+                  markdown = `\n${conversation.responseMarkdown
+                    .replace(matchImproved, diff)
+                    .replace(isCorrectPattern, "")}`;
+                }
+              } else if (conversation.explanation) {
+                markdown = `### Improved\n${diff}\n### Explanation\n${conversation.explanation}`;
+              }
+            }
+
+            const onUpdateDiffWay = (diffWay: PreferenceValues["diffWay"]) => () => {
+              setConversationHistory((history) =>
+                history.map((item, i) =>
+                  i === index
+                    ? {
+                        ...item,
+                        diffWay,
+                      }
+                    : item
+                )
+              );
+            };
 
             return (
               <List.Item
@@ -188,14 +207,14 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                     <Action.CopyToClipboard
                       shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                       title="Copy Improved"
-                      content={conversation.improved || "Coming Soon..."}
+                      content={matchImproved}
                     />
                     <Action
                       onAction={() => onAskingChatGPT(conversation.original, index)}
                       icon={Icon.RotateClockwise}
                       title="Recheck"
                     />
-                    {/* <ActionPanel.Submenu
+                    <ActionPanel.Submenu
                       shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
                       icon={Icon.Switch}
                       title="Update Diff Way"
@@ -207,7 +226,7 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                           onAction={onUpdateDiffWay(way)}
                         />
                       ))}
-                    </ActionPanel.Submenu> */}
+                    </ActionPanel.Submenu>
                     {/* <ActionPanel.Section title="Speak">
                       <Action
                         shortcut={{ modifiers: ["cmd"], key: "s" }}
@@ -292,11 +311,7 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                         </List.Item.Detail.Metadata>
                       ) : undefined
                     }
-                    markdown={
-                      conversation.responseMarkdown
-                        ? `### Original\n${conversation.original}\n${conversation.responseMarkdown}`
-                        : conversation.error || `### Improved\n${diff}\n### Explanation\n${conversation.explanation}`
-                    }
+                    markdown={`### Original\n${conversation.original}${markdown}` || conversation.error}
                   />
                 }
               />
