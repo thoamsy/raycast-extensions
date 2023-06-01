@@ -23,13 +23,11 @@
     "@raycast/api": "^1.50.1",
     "@raycast/utils": "^1.5.2",
     "chalk": "^5.2.0",
-    "diff": "^5.1.0",
     "openai": "^3.2.1",
     "run-applescript": "^6.1.0"
   },
   "devDependencies": {
     "@raycast/eslint-config": "1.0.5",
-    "@types/diff": "^5.0.3",
     "eslint": "^7.32.0",
     "prettier": "^2.5.1",
     "typescript": "^4.4.3"
@@ -49,14 +47,6 @@
       "type": "password",
       "required": true,
       "name": "openAIKey"
-    },
-    {
-      "required": false,
-      "name": "ignoreCase",
-      "description": "We have provide a diff function to show the difference between the original text and the fixed text. You can choose to ignore case when diff.",
-      "type": "checkbox",
-      "default": true,
-      "label": "Ignore case when diff"
     }
   ]
 }

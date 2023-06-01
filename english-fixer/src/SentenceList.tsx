@@ -13,9 +13,8 @@ import {
 import { useCachedState } from "@raycast/utils";
 import { useState, useEffect } from "react";
 import { getResponseStream, IMPROVED_HEADLINE } from "./utils/initChat";
-import { PreferenceValues, DIFF_WAYS } from "./utils/getPreferenceValues";
+import { PreferenceValues } from "./utils/getPreferenceValues";
 
-import { generateMarkdownDiff } from "./utils/diff";
 // import { runAppleScript } from "run-applescript";
 
 const CONVERSATION_KEY = "CONVERSATION_KEY";
@@ -157,7 +156,6 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
         <List.Section title="History">
           {conversationHistory.map((conversation, index) => {
             let matchImproved = "";
-            let diff = "";
             let markdown = "";
 
             if (selectedId.endsWith("" + index)) {
@@ -165,33 +163,13 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                 const matched = conversation.responseMarkdown.match(improvedPattern);
                 if (matched) {
                   matchImproved = matched[1];
-                  diff = selectedId.endsWith("" + index)
-                    ? generateMarkdownDiff(conversation.original, matchImproved, {
-                        diffWay: conversation.diffWay,
-                      })
-                    : "";
 
-                  markdown = `\n${conversation.responseMarkdown
-                    .replace(matchImproved, diff)
-                    .replace(isCorrectPattern, "")}`;
+                  markdown = `\n${conversation.responseMarkdown.replace(isCorrectPattern, "")}`;
                 }
               } else if (conversation.explanation) {
-                markdown = `### Improved\n${diff}\n### Explanation\n${conversation.explanation}`;
+                markdown = `### Improved\n${matchImproved}\n### Explanation\n${conversation.explanation}`;
               }
             }
-
-            const onUpdateDiffWay = (diffWay: PreferenceValues["diffWay"]) => () => {
-              setConversationHistory((history) =>
-                history.map((item, i) =>
-                  i === index
-                    ? {
-                        ...item,
-                        diffWay,
-                      }
-                    : item
-                )
-              );
-            };
 
             return (
               <List.Item
@@ -215,19 +193,6 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
                       icon={Icon.RotateClockwise}
                       title="Recheck"
                     />
-                    <ActionPanel.Submenu
-                      shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
-                      icon={Icon.Switch}
-                      title="Update Diff Way"
-                    >
-                      {DIFF_WAYS.map((way) => (
-                        <Action
-                          title={way[0].toUpperCase() + way.slice(1).toLowerCase()}
-                          key={way}
-                          onAction={onUpdateDiffWay(way)}
-                        />
-                      ))}
-                    </ActionPanel.Submenu>
                     {/* <ActionPanel.Section title="Speak">
                       <Action
                         shortcut={{ modifiers: ["cmd"], key: "s" }}

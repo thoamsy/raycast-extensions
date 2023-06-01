@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import { Configuration, OpenAIApi } from "openai";
 import { getPreferenceValues } from "./getPreferenceValues";
 
@@ -21,7 +22,7 @@ ${DELIMITER}${sentence}${DELIMITER}
 const getStreamTextSystem = `
 I will send you some English statements which will be delivered by ${DELIMITER} And you task is help me to find the grammar issues or word typo, and return an improved version which should be a string. If nothing is wrong, just return the original statement. You should give me a markdown format text which contains the following information:
 1. ### ${IMPROVED_HEADLINE}
-2. you should break a new line, and add the improved version of the original statement. And the improved version should be return as markdown which will compare the previous sentence, wrap the deleted part with ~~ and wrap the added part with **
+2. you should break a new line, and add the improved version of the original statement. And the improved version should be return as markdown which will compare to the previous sentence, wrap the deleted part in the original sentence with ~~ and wrap the added part in improved sentence with **, ignoring the case.
 3. ### Explanation
 4. you should break a new line, and add the explanation why you think it is wrong or not. I will learn from you. Do not wrap the content with triple backticks
 5. If my sentence is correct and no any issues,  you should add \`\`\`correct\`\`\` in the end of the text. So I will know that you think it is correct.
@@ -85,12 +86,9 @@ export const getResponseStream = async function* (sentence: string) {
         }
       }
     }
-  } catch (error: any) {
-    if (error.response) {
-      console.error("Error: ", error.response.status);
-      console.error("Error: ", error.response.data);
-    } else {
-      console.error("Error: ", error.message);
-    }
+  } catch (error) {
+    const { response } = error as AxiosError;
+    console.error(response?.data);
+    return response?.statusText ?? "Unknown error";
   }
 };
