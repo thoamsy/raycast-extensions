@@ -71,6 +71,7 @@ export default function SentenceList({ askingSentences }: { askingSentences?: st
         setChatGPTResponse((prev) => prev + token);
       }
 
+      console.log(result);
       setChatGPTResponse(result.replace(isCorrectPattern, ""));
       onSuccess({
         responseMarkdown: result.replace(isCorrectPattern, ""),
